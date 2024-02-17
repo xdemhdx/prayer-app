@@ -1,59 +1,34 @@
-import { StatusBar } from 'expo-status-bar';
+// App.js
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, SafeAreaView } from 'react-native';
-import React, { useState, useEffect, lazy } from 'react';
-import * as Location from 'expo-location';
+import { getPrayerTimes } from './services/PrayerTimesService'; // Adjust the path as necessary
 
 export default function App() {
-  const [location, setLocation] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
   const [data, setData] = useState(null);
-  const db={"name":"ali","age":21}
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('Permission to access location was denied');
-        return;
+      try {
+        const prayerTimes = await getPrayerTimes();
+        setData(prayerTimes);
+      } catch (error) {
+        console.error('Error:', error);
+        setErrorMsg(error.message || 'Error fetching prayer times');
+      } finally {
+        setLoading(false);
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location.coords);
     })();
   }, []);
 
-  useEffect(() => {
-    if (location) {
-      const fetchData = async () => {
-        try {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = now.getMonth() + 1; // JavaScript months are 0-based.
-          const { latitude, longitude,accuracy } = location;
-
-          const response = await fetch(`https://api.aladhan.com/v1/calendar/${year}/${month}?latitude=${latitude}&longitude=${longitude}`);
-          const json = await response.json();
-          setData(json);
-        } catch (error) {
-          console.error('Error fetching data: ', error);
-          setErrorMsg('Error fetching prayer times');
-        }
-      };
-
-      fetchData();
-    }
-  }, [location]);
-
-  let text = 'Waiting for location...';
-  if (errorMsg) {
-    text = errorMsg;
-  } else if (data) {
-    text = 'Data loaded';
-  }
-
   return (
     <SafeAreaView style={styles.container}>
-      {data ? (
+      {loading ? (
+        <Text>Loading...</Text>
+      ) : errorMsg ? (
+        <Text>{errorMsg}</Text>
+      ) : data ? (
         <ScrollView>
           {data.data.map((day, index) => (
             <View key={index} style={styles.dayContainer}>
@@ -67,7 +42,7 @@ export default function App() {
           ))}
         </ScrollView>
       ) : (
-        <Text>{text}</Text>
+        <Text>No data available</Text>
       )}
     </SafeAreaView>
   );
@@ -85,6 +60,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderWidth: 1,
     borderColor: '#ddd',
-    backgroundColor: 'red',
+    backgroundColor: 'snow',
   },
 });
